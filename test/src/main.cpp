@@ -40,6 +40,7 @@
 #include <iomanip>  // Includes ::std::hex, ::std::setw
 #include <iostream> // Includes ::std::cerr, ::std::endl
 #include <string>   // Includes ::std::string
+#include <sstream>
 
 #ifdef CRCPP_USE_NAMESPACE
 using ::CRCPP::CRC;
@@ -160,6 +161,36 @@ static void CRCTableTest(const char * data, size_t size, const CRC::Parameters<C
     PrintResult<CRCType, CRCWidth>(data, size, parameters, expectedCRC, computedCRC, crcName, true);
 }
 
+template <typename CRCType, uint16_t CRCWidth>
+static void PrintCrcTable(const CRC::Parameters<CRCType, CRCWidth> & parameters)
+{
+    using namespace std;
+    auto crcTable = CRC::Table<CRCType, CRCWidth>{parameters};
+    ostringstream os;
+    os << hex << setfill('0');
+    int k = 0;
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j)
+            os << " 0x" << setw(8) << crcTable[k++];
+        os << '\n';
+    }
+    cout << os.str() << endl;
+}
+
+template<typename CRCType, std::uint16_t CRCWidth>
+std::ostream&
+operator<<(std::ostream& os, const CRC::Parameters<CRCType, CRCWidth>& p) {
+  auto f = os.flags();
+  os << std::hex << std::boolalpha
+                 << std::uint64_t(p.polynomial)
+     << ' '      << std::uint64_t(p.initialValue)
+     << ' '      << std::uint64_t(p.finalXOR)
+     << " refIn="  << p.reflectInput
+     << " refOut=" << p.reflectOutput;
+  os.flags(f);
+  return os;
+} // << CRC::Parameters
+
 /**
     @brief Partial CRC table test function. Calculates a CRC in two parts over some specified data and compares the calculated CRC to an expected CRC.
     @param[in] data Data over which CRC will be computed
@@ -196,10 +227,12 @@ static void PartialCRCTableTest(const char * data, size_t size, const CRC::Param
 template <typename CRCType, uint16_t CRCWidth>
 static void CRCTest(const char * data, size_t size, const CRC::Parameters<CRCType, CRCWidth> & parameters, CRCType expectedCRC, const std::string & crcName)
 {
-    CRCBitByBitTest<CRCType, CRCWidth>(data, size, parameters, expectedCRC, crcName);
+    std::clog << "Log: " << crcName << " " << size << " " << parameters
+              << " " << std::uint64_t(expectedCRC) << '\n';
+    CRCBitByBitTest       <CRCType, CRCWidth>(data, size, parameters, expectedCRC, crcName);
     PartialCRCBitByBitTest<CRCType, CRCWidth>(data, size, parameters, expectedCRC, crcName);
-    CRCTableTest<CRCType, CRCWidth>(data, size, parameters, expectedCRC, crcName);
-    PartialCRCTableTest<CRCType, CRCWidth>(data, size, parameters, expectedCRC, crcName);
+    CRCTableTest          <CRCType, CRCWidth>(data, size, parameters, expectedCRC, crcName);
+    PartialCRCTableTest   <CRCType, CRCWidth>(data, size, parameters, expectedCRC, crcName);
 }
 
 /**
@@ -334,6 +367,7 @@ int main(int argc, char ** argv)
     CRCTest(CRC_CHECK_DATA, CRC_CHECK_SIZE, CRC::CRC_30(),            uint32_t(0x3B3CB540),         "CRC_30");
 #endif
     CRCTest(CRC_CHECK_DATA, CRC_CHECK_SIZE, CRC::CRC_32(),            uint32_t(0xCBF43926),         "CRC_32");
+    PrintCrcTable(CRC::CRC_32());
     CRCTest(CRC_CHECK_DATA, CRC_CHECK_SIZE, CRC::CRC_32_BZIP2(),      uint32_t(0xFC891918),         "CRC_32_BZIP2");
 #ifdef CRCPP_INCLUDE_ESOTERIC_CRC_DEFINITIONS
     CRCTest(CRC_CHECK_DATA, CRC_CHECK_SIZE, CRC::CRC_32_C(),          uint32_t(0xE3069283),         "CRC_32_C");
